@@ -1,0 +1,17 @@
+{
+  "position": "pim.activity.navigation.tab",
+  "name": "akeneo_orphan_audit",
+  "type": "sdk_script",
+  "file": "dist/akeneo-orphan-audit.js",
+  "configuration": {
+    "default_label": "Orphan Asset Audit",
+    "labels": {
+      "en_US": "Orphan Asset Audit",
+      "fr_FR": "Audit des assets orphelins",
+      "de_DE": "Audit verwaister Assets",
+      "es_ES": "Auditoría de assets huérfanos",
+      "it_IT": "Audit degli asset orfani"
+    }
+  },
+  "credentials": []
+}
