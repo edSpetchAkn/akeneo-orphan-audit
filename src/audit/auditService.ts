@@ -10,7 +10,7 @@
  */
 
 import { CONFIG } from '../config';
-import { fetchAllPages, fetchAllAssetPages } from './pimApiHelpers';
+import { fetchAllPages, fetchAllSearchAfterPages, fetchAllAssetPages } from './pimApiHelpers';
 import type { OnPageFetchedCallback } from './pimApiHelpers';
 import type { AuditAsset, AuditProgress, AuditResult, DebugLogEntry } from './auditTypes';
 import { ANY_ATTRIBUTE_CODE, STEP_LABELS } from './auditTypes';
@@ -205,8 +205,14 @@ export async function runOrphanAudit(
     });
   };
 
-  const allProducts = await fetchAllPages<Product>(
-    ({ page, limit }) => globalThis.PIM.api.product_uuid_v1.list({ page, limit }),
+  const allProducts = await fetchAllSearchAfterPages<Product>(
+    ({ searchAfter, limit }) =>
+      globalThis.PIM.api.product_uuid_v1.list({
+        pagination_type: 'search_after',
+        limit,
+        ...(searchAfter !== undefined ? { search_after: searchAfter } : {}),
+        attributes: linkedAttributeCodes.join(','),
+      }),
     CONFIG.PRODUCTS_PAGE_SIZE,
     'products',
     onProductPage,
@@ -248,8 +254,14 @@ export async function runOrphanAudit(
     });
   };
 
-  const allProductModels = await fetchAllPages<ProductModel>(
-    ({ page, limit }) => globalThis.PIM.api.product_model_v1.list({ page, limit }),
+  const allProductModels = await fetchAllSearchAfterPages<ProductModel>(
+    ({ searchAfter, limit }) =>
+      globalThis.PIM.api.product_model_v1.list({
+        pagination_type: 'search_after',
+        limit,
+        ...(searchAfter !== undefined ? { search_after: searchAfter } : {}),
+        attributes: linkedAttributeCodes.join(','),
+      }),
     CONFIG.PRODUCTS_PAGE_SIZE,
     'product-models',
     onModelPage,
