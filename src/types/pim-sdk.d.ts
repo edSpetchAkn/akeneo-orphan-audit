@@ -213,6 +213,10 @@ interface ProductListParams {
   withCount?: boolean;
   withCompletenesses?: boolean;
   withAssetShareLinks?: boolean;
+  pagination_type?: 'page' | 'search_after';
+  search_after?: string;
+  /** Comma-separated attribute codes to include in returned values. */
+  attributes?: string;
 }
 
 interface ProductGetParams { uuid: string; withCompletenesses?: boolean; withAssetShareLinks?: boolean }
@@ -276,6 +280,10 @@ interface ProductModelListParams {
   limit?: number;
   withCount?: boolean;
   withAssetShareLinks?: boolean;
+  pagination_type?: 'page' | 'search_after';
+  search_after?: string;
+  /** Comma-separated attribute codes to include in returned values. */
+  attributes?: string;
 }
 
 interface ProductModelGetParams { code: string; withAssetShareLinks?: boolean }
