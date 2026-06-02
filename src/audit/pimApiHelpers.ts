@@ -6,15 +6,18 @@
  *
  * Two pagination patterns exist in the Akeneo REST API:
  *
- * 1. **Page-number-based** — Products, Product Models, Attributes.
+ * 1. **Page-number-based** — Attributes only.
  *    The caller increments a `page` integer; the response includes
- *    `links.next` when more pages are available.
+ *    `links.next` when more pages are available. Limited to 100 pages max.
  *
- * 2. **Cursor-based (search_after)** — Assets.
+ * 2. **Cursor-based (search_after)** — Products, Product Models, Assets.
  *    The `search_after` query parameter is extracted from `links.next.href`
- *    and passed as `paginationCursor` in the next request.
+ *    and passed on the next request. Required for products/product models
+ *    beyond page 100 (the API returns a 422 if page-number pagination is used
+ *    past that limit).
  *
- * `fetchAllPages` handles pattern 1. `fetchAllAssetPages` handles pattern 2.
+ * `fetchAllPages` handles pattern 1. `fetchAllSearchAfterPages` and
+ * `fetchAllAssetPages` handle pattern 2.
  */
 
 import { CONFIG } from '../config';
@@ -81,6 +84,72 @@ export async function fetchAllPages<T>(
     // Stop when the API indicates there is no next page, or when this page
     // returned fewer items than the limit (last page guard).
     hasNextPage = Boolean(response.links?.next) && items.length > 0;
+    page++;
+  }
+
+  return allItems;
+}
+
+/**
+ * Fetches all pages from a **search_after cursor-based** PIM API endpoint and
+ * returns a flat array of all items.
+ *
+ * Use this for products and product models. Page-number pagination fails with a
+ * 422 after 100 pages on those endpoints.
+ *
+ * @param lister       - A function that calls the SDK API with `{ searchAfter?, limit }`.
+ *                       Must be a closure with all non-pagination params already bound.
+ * @param limit        - Number of items per page (max 100).
+ * @param resourceName - Human-readable label used in debug log output.
+ * @param onPageFetched - Optional callback called after each page is fetched.
+ * @returns            A flat array of all items across all pages.
+ */
+export async function fetchAllSearchAfterPages<T>(
+  lister: (params: { searchAfter?: string; limit: number }) => Promise<PaginatedList<T>>,
+  limit: number,
+  resourceName: string,
+  onPageFetched?: OnPageFetchedCallback,
+): Promise<T[]> {
+  const allItems: T[] = [];
+  let searchAfter: string | undefined;
+  let page = 1;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    let response: PaginatedList<T>;
+
+    try {
+      response = await lister({ searchAfter, limit });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to fetch ${resourceName} (page ${page}): ${message}`);
+    }
+
+    const items = response.items ?? [];
+    allItems.push(...items);
+
+    if (CONFIG.DEBUG_MODE) {
+      console.debug(
+        `[PAGINATE] ${resourceName} page ${page} — ${items.length} items, total: ${allItems.length}`,
+      );
+    }
+
+    onPageFetched?.(page, items.length, allItems.length);
+
+    const nextHref = response.links?.next?.href;
+    if (nextHref && items.length > 0) {
+      try {
+        const url = new URL(nextHref);
+        const cursor = url.searchParams.get('search_after');
+        searchAfter = cursor ?? undefined;
+        hasNextPage = searchAfter !== undefined;
+      } catch {
+        hasNextPage = false;
+      }
+    } else {
+      hasNextPage = false;
+    }
+
     page++;
   }
 
